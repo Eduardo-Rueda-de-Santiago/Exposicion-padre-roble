@@ -196,8 +196,9 @@ async def sensor_task(peripheral: BLEPeripheral):
 
         distance = read_distance_cm()
 
-        if distance is not None:
-            peripheral.send(distance)
+        if distance is None:
+            distance = -1
+        peripheral.send(distance)
 
         await asyncio.sleep_ms(MEASURE_INTERVAL_MS)
 
