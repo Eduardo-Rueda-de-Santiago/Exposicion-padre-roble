@@ -21,29 +21,31 @@ NOTE: The sensor operates at 3.3 V logic — no level
 ──────────────────────────────────────────────
 """
 
-import machine
-import neopixel
 import time
 
+import machine
+import neopixel
+
 # ── Pin / hardware config ──────────────────────────────────────────────────────
-UART_ID   = 2          # Hardware UART2
-UART_RX   = 16         # Sensor TX → ESP32 GPIO16
-UART_TX   = 17         # Sensor RX → ESP32 GPIO17
+UART_ID = 2  # Hardware UART2
+UART_RX = 16  # Sensor TX → ESP32 GPIO16
+UART_TX = 17  # Sensor RX → ESP32 GPIO17
 BAUD_RATE = 115200
 
-NEO_PIN    = 5         # NeoPixel data pin
-NUMPIXELS  = 34
-BRIGHTNESS = 1.0       # 0.0 – 1.0  (MicroPython neopixel has no built-in
-                       # setBrightness, so we scale colours manually)
+NEO_PIN = 5  # NeoPixel data pin
+NUMPIXELS = 34
+BRIGHTNESS = 1.0  # 0.0 – 1.0  (MicroPython neopixel has no built-in
+# setBrightness, so we scale colours manually)
 
-DISTANCE_THRESHOLD = 150   # cm — LEDs turn on when target is closer than this
+DISTANCE_THRESHOLD = 150  # cm — LEDs turn on when target is closer than this
 
 # ── Init command (same hex string as the Arduino sketch) ──────────────────────
 INIT_HEX = "FDFCFBFA0800120000006400000004030201"
 
 # ── Hardware init ─────────────────────────────────────────────────────────────
-uart = machine.UART(UART_ID, baudrate=BAUD_RATE, rx=UART_RX, tx=UART_TX,
-                    bits=8, parity=None, stop=1)
+uart = machine.UART(
+    UART_ID, baudrate=BAUD_RATE, rx=UART_RX, tx=UART_TX, bits=8, parity=None, stop=1
+)
 
 np = neopixel.NeoPixel(machine.Pin(NEO_PIN), NUMPIXELS)
 
@@ -66,8 +68,7 @@ def pixels_clear():
 
 def send_hex_data(hex_string):
     """Convert a hex string to bytes and send over UART."""
-    data = bytes(int(hex_string[i:i+2], 16)
-                 for i in range(0, len(hex_string), 2))
+    data = bytes(int(hex_string[i : i + 2], 16) for i in range(0, len(hex_string), 2))
     uart.write(data)
 
 
@@ -92,6 +93,9 @@ def process_line(line):
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+errs = 0
+
+
 def main():
     # Clear strip on start
     pixels_clear()
@@ -112,14 +116,18 @@ def main():
                 while b"\n" in incoming:
                     idx = incoming.index(b"\n")
                     raw_line = incoming[:idx]
-                    incoming = incoming[idx + 1:]
+                    incoming = incoming[idx + 1 :]
+                    try:
+                        # Strip carriage return if present
+                        line = raw_line.decode("ascii", "ignore").strip("\r")
+                        if line:
+                            process_line(line)
+                    except Exception as e:
+                        global errs
+                        errs += 1
+                        print(f"Error procesing line, errors: {errs}")
+        time.sleep_ms(10)  # small yield to avoid busy-spin
 
-                    # Strip carriage return if present
-                    line = raw_line.decode("utf-8", "ignore").strip("\r")
-                    if line:
-                        process_line(line)
 
-        time.sleep_ms(10)   # small yield to avoid busy-spin
-
-time.sleep_ms(500)   # Settle after Thonny reset
+time.sleep_ms(500)  # Settle after Thonny reset
 main()
