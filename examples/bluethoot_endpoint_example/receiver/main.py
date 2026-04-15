@@ -17,41 +17,53 @@ UUIDs (match these on every ESP_COLUMN transmitter):
 """
 
 import asyncio
+
 import bluetooth
 from micropython import const
 
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-SERVICE_UUID        = bluetooth.UUID(0x1234)
+SERVICE_UUID = bluetooth.UUID(0x1234)
 CHARACTERISTIC_UUID = bluetooth.UUID(0x5678)
 
-SCAN_INTERVAL_S      = const(10)    # Re-scan for new devices every 10 s
-RECONNECT_INTERVAL_S = const(60)    # Wait between error reports / retries
-MAX_RECONNECT_FAST   = const(5)     # Failures before switching to 1/min retry
-CONNECT_TIMEOUT_S    = const(5)     # Max wait for a connection to establish
-SCAN_DURATION_MS     = const(3_000) # BLE scan window
+SCAN_INTERVAL_S = const(10)  # Re-scan for new devices every 10 s
+RECONNECT_INTERVAL_S = const(60)  # Wait between error reports / retries
+MAX_RECONNECT_FAST = const(5)  # Failures before switching to 1/min retry
+CONNECT_TIMEOUT_S = const(5)  # Max wait for a connection to establish
+SCAN_DURATION_MS = const(3_000)  # BLE scan window
 
-BLINK_DISCONNECTED   = 0.05         # LED blink period when searching (s)
-BLINK_CONNECTED      = 1.0          # LED blink period when >=1 device up (s)
+BLINK_DISCONNECTED = 0.05  # LED blink period when searching (s)
+BLINK_CONNECTED = 1.0  # LED blink period when >=1 device up (s)
 
 # ---------------------------------------------------------------------------
 # LED helpers
 # ---------------------------------------------------------------------------
 try:
     from machine import Pin
+
     _led = Pin(2, Pin.OUT)
-    def led_on():  _led.value(1)
-    def led_off(): _led.value(0)
+
+    def led_on():
+        _led.value(1)
+
+    def led_off():
+        _led.value(0)
 except Exception:
-    def led_on():  pass
-    def led_off(): pass
+
+    def led_on():
+        pass
+
+    def led_off():
+        pass
+
 
 # ---------------------------------------------------------------------------
 # Serial output
 # ---------------------------------------------------------------------------
 def serial_print(msg: str):
     print(msg)
+
 
 # ---------------------------------------------------------------------------
 # Device name validation
@@ -61,29 +73,32 @@ def is_allowed_name(name: str) -> bool:
     if name == "ADMIN":
         return True
     if name.startswith("ESP_COLUMN_"):
-        suffix = name[len("ESP_COLUMN_"):]
+        suffix = name[len("ESP_COLUMN_") :]
         return suffix.isdigit()
     return False
+
 
 # ---------------------------------------------------------------------------
 # Device state
 # ---------------------------------------------------------------------------
 class DeviceInfo:
     def __init__(self, name: str, addr: bytes, addr_type: int):
-        self.name        = name
-        self.addr        = addr
-        self.addr_type   = addr_type
-        self.connected   = False
+        self.name = name
+        self.addr = addr
+        self.addr_type = addr_type
+        self.connected = False
         self.conn_handle = None
-        self.fail_count  = 0
+        self.fail_count = 0
         # asyncio.Event signals rx_task that a notification has arrived
-        self.rx_event    = asyncio.Event()
+        self.rx_event = asyncio.Event()
         # Notification buffer — only touched inside the event loop (no lock needed)
-        self.rx_buffer   = []
+        self.rx_buffer = []
         self.value_handle = None
+
 
 # Global device registry  { name: DeviceInfo }
 devices: dict = {}
+
 
 # ---------------------------------------------------------------------------
 # BLE Central
@@ -95,7 +110,7 @@ class BLECentral:
         self._ble.irq(self._irq)
 
         # Scan results — filled by IRQ, consumed by scan_task
-        self._scan_results: dict = {}   # addr_hex -> {name, addr, addr_type}
+        self._scan_results: dict = {}  # addr_hex -> {name, addr, addr_type}
         self._scan_done = asyncio.Event()
 
         # Pending connections  addr_hex -> name
@@ -113,8 +128,8 @@ class BLECentral:
             if name and is_allowed_name(name):
                 addr_hex = bytes(addr).hex()
                 self._scan_results[addr_hex] = {
-                    "name":      name,
-                    "addr":      bytes(addr),
+                    "name": name,
+                    "addr": bytes(addr),
                     "addr_type": addr_type,
                 }
 
@@ -129,9 +144,9 @@ class BLECentral:
             name = self._pending.pop(addr_hex, None)
             if name and name in devices:
                 dev = devices[name]
-                dev.connected   = True
+                dev.connected = True
                 dev.conn_handle = conn_handle
-                dev.fail_count  = 0
+                dev.fail_count = 0
                 self._ble.gattc_discover_services(conn_handle)
 
         # --- Peripheral disconnected ---
@@ -139,7 +154,7 @@ class BLECentral:
             conn_handle, addr_type, addr = data
             for dev in devices.values():
                 if dev.conn_handle == conn_handle:
-                    dev.connected   = False
+                    dev.connected = False
                     dev.conn_handle = None
                     break
 
@@ -168,19 +183,17 @@ class BLECentral:
                         dev.value_handle = value_handle
                         break
 
-                self._ble.gattc_write(
-                    conn_handle, value_handle + 1, b'\x01\x00', 1
-                )
+                self._ble.gattc_write(conn_handle, value_handle + 1, b"\x01\x00", 1)
 
         # --- Notification received ---
         elif event == 18:
-            #conn_handle, value_handle, notify_data = data
-            #payload = bytes(notify_data)
-            #for dev in devices.values():
-                #if dev.conn_handle == conn_handle:
-                    #dev.rx_buffer.append(payload)
-                    #dev.rx_event.set()
-                    #break
+            # conn_handle, value_handle, notify_data = data
+            # payload = bytes(notify_data)
+            # for dev in devices.values():
+            # if dev.conn_handle == conn_handle:
+            # dev.rx_buffer.append(payload)
+            # dev.rx_event.set()
+            # break
             print("[DEBUG] Notification IRQ fired")
 
     # ------------------------------------------------------------------
@@ -195,9 +208,9 @@ class BLECentral:
             if length == 0:
                 break
             type_ = adv_data[i + 1]
-            if type_ in (0x08, 0x09):   # Shortened / Complete Local Name
+            if type_ in (0x08, 0x09):  # Shortened / Complete Local Name
                 try:
-                    return adv_data[i + 2: i + 1 + length].decode("utf-8")
+                    return adv_data[i + 2 : i + 1 + length].decode("utf-8")
                 except Exception:
                     return None
             i += 1 + length
@@ -212,12 +225,9 @@ class BLECentral:
         self._scan_done.clear()
         self._ble.gap_scan(SCAN_DURATION_MS, 30_000, 30_000)
         try:
-            await asyncio.wait_for(
-                self._scan_done.wait(),
-                SCAN_DURATION_MS / 1000 + 1
-            )
+            await asyncio.wait_for(self._scan_done.wait(), SCAN_DURATION_MS / 1000 + 1)
         except asyncio.TimeoutError:
-            self._ble.gap_scan(None)    # Force-stop scan
+            self._ble.gap_scan(None)  # Force-stop scan
         return dict(self._scan_results)
 
     async def connect(self, dev: DeviceInfo) -> bool:
@@ -229,17 +239,18 @@ class BLECentral:
         self._pending[addr_hex] = dev.name
         self._ble.gap_connect(dev.addr_type, dev.addr)
 
-        for _ in range(CONNECT_TIMEOUT_S * 10):    # Poll every 100 ms
+        for _ in range(CONNECT_TIMEOUT_S * 10):  # Poll every 100 ms
             await asyncio.sleep_ms(100)
             if dev.connected:
                 return True
 
-        self._pending.pop(addr_hex, None)           # Timed out — clean up
+        self._pending.pop(addr_hex, None)  # Timed out — clean up
         return False
 
 
 # Singleton BLE central
 central = BLECentral()
+
 
 # ---------------------------------------------------------------------------
 # Task: LED blinker
@@ -252,6 +263,7 @@ async def led_task():
         await asyncio.sleep(period / 2)
         led_off()
         await asyncio.sleep(period / 2)
+
 
 # ---------------------------------------------------------------------------
 # Task: per-device RX
@@ -267,7 +279,7 @@ async def rx_task(dev: DeviceInfo):
         try:
             await asyncio.wait_for(dev.rx_event.wait(), timeout=1.0)
         except asyncio.TimeoutError:
-            continue    # Loop back to re-check dev.connected
+            continue  # Loop back to re-check dev.connected
 
         dev.rx_event.clear()
 
@@ -280,6 +292,7 @@ async def rx_task(dev: DeviceInfo):
             serial_print(f"{dev.name}-{message}")
 
     serial_print(f"[INFO] rx_task exiting for {dev.name} (disconnected)")
+
 
 # ---------------------------------------------------------------------------
 # Task: scan + connection manager
@@ -327,17 +340,14 @@ async def scan_task():
             else:
                 dev.fail_count += 1
                 serial_print(
-                    f"[WARN] Failed to connect to {name} "
-                    f"(attempt {dev.fail_count})"
+                    f"[WARN] Failed to connect to {name} (attempt {dev.fail_count})"
                 )
 
         # Prune names whose rx_task has exited (device disconnected)
-        rx_active = {
-            n for n in rx_active
-            if n in devices and devices[n].connected
-        }
+        rx_active = {n for n in rx_active if n in devices and devices[n].connected}
 
         await asyncio.sleep(SCAN_INTERVAL_S)
+
 
 # ---------------------------------------------------------------------------
 # Task: error reporter + slow reconnect
@@ -375,6 +385,7 @@ async def error_task():
                     f"Total failed attempts: {dev.fail_count}."
                 )
 
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -390,5 +401,6 @@ async def main():
     # Keep the event loop alive
     while True:
         await asyncio.sleep(60)
+
 
 asyncio.run(main())

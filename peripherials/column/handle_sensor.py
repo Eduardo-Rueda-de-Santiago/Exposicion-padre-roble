@@ -95,9 +95,7 @@ class MotionSensor:
         """
 
         # Convert hex string into bytes
-        data = bytes(
-            int(hex_string[i : i + 2], 16) for i in range(0, len(hex_string), 2)
-        )
+        data = bytes.fromhex(hex_string)
 
         # Send bytes through UART
         self.uart.write(data)
@@ -116,7 +114,7 @@ class MotionSensor:
 
         Returns:
             int: Distance value in sensor units
-                 -1 if no valid data found
+                 None if no valid data found
         """
 
         # Check if data is available in UART buffer
@@ -137,6 +135,7 @@ class MotionSensor:
                     # Extract one line from buffer
                     raw_line = self.incoming[:idx]
                     if not raw_line:
+                        self.incoming = self.incoming[idx + 1 :]
                         continue
                     # Remove processed line from buffer
                     self.incoming = self.incoming[idx + 1 :]
@@ -148,7 +147,7 @@ class MotionSensor:
                     # Extract distance value
                     return self._extract_distance_from_line(decoded_line)
 
-    def _decode_sensor_data(self, raw_line) -> str:
+    def _decode_sensor_data(self, raw_line) -> str | None:
         """
         Decode raw UART bytes into ASCII string.
 
@@ -169,12 +168,12 @@ class MotionSensor:
             if line:
                 return line
 
-            return ""
+            return None
 
         except Exception:
             raise Exception("No data read")
 
-    def _extract_distance_from_line(self, processed_line: str) -> int | None:
+    def _extract_distance_from_line(self, processed_line) -> int | None:
         """
         Extract numeric distance value from processed sensor output.
 
@@ -185,7 +184,7 @@ class MotionSensor:
             processed_line: Decoded string line
 
         Returns:
-            int: Distance value or -1 if invalid
+            int: Distance value or None if invalid
         """
         if processed_line == "ON":
             return None
@@ -195,7 +194,7 @@ class MotionSensor:
             except Exception:
                 raise Exception("Data coulnd't be parsed")
 
-        return -1
+        return None
 
     def _handle_errors(self, e: Exception):
         self.continuous_fails += 1
@@ -219,14 +218,10 @@ class MotionSensor:
         while True:
             try:
                 data = self._read_sensor_data()
-                if data:
-                    self.last_distance = self.last_distance
+                if data is not None:
+                    self.last_distance = data
                     self.continuous_fails = 0
-                    print(self.last_distance)
-                else:
-                    print("Nothing was found")
             except Exception as e:
-                print(e.args)
                 self._handle_errors(e)
 
             await asyncio.sleep_ms(self.sensor_reading_wait_ms)
