@@ -20,8 +20,7 @@ NOTE: The sensor operates at 3.3 V logic — no level
 
 import machine
 import uasyncio as asyncio
-
-from peripherials.column.common_data_storage import DataStorage
+from common_data_storage import DataStorage
 
 # UART communication settings
 BAUD_RATE = 115200
@@ -220,7 +219,7 @@ class MotionSensor:
             try:
                 data = self._read_sensor_data()
                 if data is not None:
-                    self.common_data_storage.distance_to_person = data
+                    self.common_data_storage.update_distance(data)
                     self.common_data_storage.set_sensor_failing_state(False)
 
                     self.continuous_fails = 0
