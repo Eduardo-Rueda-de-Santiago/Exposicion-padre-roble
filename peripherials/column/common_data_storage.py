@@ -4,8 +4,6 @@ class DataStorage:
 
     Acts as a lightweight message-bus: the sensor writes to it,
     the LED controller and any future consumers read from it.
-    No locking is required on MicroPython's cooperative scheduler
-    because only one coroutine runs at a time.
     """
 
     def __init__(self) -> None:

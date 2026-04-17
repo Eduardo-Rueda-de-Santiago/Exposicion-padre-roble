@@ -1,29 +1,39 @@
-from asyncio import create_task, run, sleep_ms
+"""
+Entry point for the ESP32 proximity-lighting firmware.
 
+Architecture
+────────────
+DataStorage (shared state)
+    ↑ writes distance         ↓ reads distance
+MotionSensor task       LedStripController task
+
+"""
+
+import uasyncio as asyncio
 from common_data_storage import DataStorage
 from handle_led import LedStripController
 from handle_sensor import MotionSensor
 
-ds = DataStorage()
-# led_controller = LedStripController()
 
+async def main() -> None:
+    # Shared state — single source of truth for the current distance
+    ds = DataStorage()
 
-# async def update_leds():
-#     led_controller.update_led_brightness(ds.distance_to_person)
-#     print(ds.distance_to_person)
-#     sleep_ms(10)
+    # Sensor task: reads UART, writes ds.distance_to_person
+    sensor = MotionSensor(ds, sensor_reading_wait_ms=15)
 
+    # LED task: reads ds.distance_to_person, drives the NeoPixel strip
+    led_controller = LedStripController(ds)
 
-async def main():
-    sensor = MotionSensor(ds, sensor_reading_wait_ms=10)
+    # Schedule both coroutines as concurrent tasks
+    asyncio.create_task(sensor.run_sensor_async())
+    asyncio.create_task(led_controller.run_led_async(update_interval_ms=0))
 
-    create_task(sensor.run_sensor_async())
-    #     create_task(update_leds())
-
+    # Keep the event loop alive; add any future top-level tasks here
     while True:
-        await sleep_ms(10)  # keep loop alive
-        print(ds.distance_to_person)
+        await asyncio.sleep_ms(100)
+        print(f"Dist: {ds.distance_to_person}")
+        print(f"Bright: {led_controller.target_led_brightness}")
 
 
-#
-run(main())
+asyncio.run(main())
