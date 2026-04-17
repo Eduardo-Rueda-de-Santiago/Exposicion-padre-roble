@@ -21,6 +21,8 @@ NOTE: The sensor operates at 3.3 V logic — no level
 import machine
 import uasyncio as asyncio
 
+from peripherials.column.common_data_storage import DataStorage
+
 # UART communication settings
 BAUD_RATE = 115200
 DEFAULT_UART_ID = 2
@@ -48,6 +50,7 @@ class MotionSensor:
 
     def __init__(
         self,
+        common_data_storage: DataStorage,
         uart_id: int = DEFAULT_UART_ID,
         uart_rx_pin: int = DEFAULT_UART_RX,
         uart_tx_pin: int = DEFAULT_UART_TX,
@@ -74,6 +77,8 @@ class MotionSensor:
             stop=1,
         )
 
+        self.common_data_storage = common_data_storage
+
         # Delay between polling cycles (ms)
         self.sensor_reading_wait_ms = sensor_reading_wait_ms
 
@@ -82,9 +87,6 @@ class MotionSensor:
 
         # Counter for consecutive read failures
         self.continuous_fails = 0
-
-        # Last successfully read distance value (default large value)
-        self.last_distance = 999
 
     def _send_hex_data(self, hex_string):
         """
@@ -203,10 +205,9 @@ class MotionSensor:
             self._set_sensor_normal_reading_mode()
 
         if self.continuous_fails >= 100 and self.continuous_fails % 100 == 0:
-            # TODO: notify via bluethoot
-            pass
+            self.common_data_storage.set_sensor_failing_state(True)
 
-    async def run_sensor_async(self):
+    async def run_sensor_async(self) -> None:
         """
         Main loop:
         - Initializes sensor
@@ -219,7 +220,9 @@ class MotionSensor:
             try:
                 data = self._read_sensor_data()
                 if data is not None:
-                    self.last_distance = data
+                    self.common_data_storage.distance_to_person = data
+                    self.common_data_storage.set_sensor_failing_state(False)
+
                     self.continuous_fails = 0
             except Exception as e:
                 self._handle_errors(e)
