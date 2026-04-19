@@ -6,8 +6,9 @@ from common_data_storage import DataStorage
 DEFAULT_LED_PIN = 21
 DEFAULT_LED_NUMBER = 200
 
-# How often the LED task checks the shared storage for a new distance (ms)
-DEFAULT_LED_UPDATE_INTERVAL_MS = 10
+# How often the LED task checks shared storage for a new distance (ms).
+# 0 = yield once to scheduler then immediately retry (maximum responsiveness).
+DEFAULT_LED_UPDATE_INTERVAL_MS = 0
 
 
 class LedStripController:
@@ -20,6 +21,10 @@ class LedStripController:
         distance <= min_distance_expected  →  max_brightness
         distance >= max_distance_expected  →  min_brightness
         in between                         →  linear interpolation
+
+    LED config (min/max brightness, min/max distance) can be updated at
+    runtime by the BLE task via DataStorage.queue_led_config().  The LED
+    task drains the pending config at the top of every loop iteration.
     """
 
     def __init__(
@@ -27,8 +32,8 @@ class LedStripController:
         common_data_storage: DataStorage,
         pin: int = DEFAULT_LED_PIN,
         led_num: int = DEFAULT_LED_NUMBER,
-        min_distance_expected: int = 20,
-        max_distance_expected: int = 150,
+        min_distance_expected: int = 50,
+        max_distance_expected: int = 250,
         min_brightness: int = 0,
         max_brightness: int = 255,
     ) -> None:
@@ -36,13 +41,14 @@ class LedStripController:
         Initialize LED strip controller.
 
         Args:
-            common_data_storage: Shared storage from which the distance is read.
-            pin: GPIO pin connected to the LED strip data line.
-            led_num: Number of LEDs in the strip.
+            common_data_storage:   Shared storage — distance is read from here,
+                                   pending BLE config is drained here.
+            pin:                   GPIO pin connected to the LED strip data line.
+            led_num:               Number of LEDs in the strip.
             min_distance_expected: Distance (cm) that maps to max brightness.
             max_distance_expected: Distance (cm) that maps to min brightness.
-            min_brightness: Minimum brightness value (0–255).
-            max_brightness: Maximum brightness value (0–255).
+            min_brightness:        Minimum brightness value (0–255).
+            max_brightness:        Maximum brightness value (0–255).
         """
         self.led_strip = neopixel.NeoPixel(machine.Pin(pin), led_num)
         self.common_data_storage = common_data_storage
@@ -54,6 +60,35 @@ class LedStripController:
         self._max_distance_expected = max_distance_expected
         self._min_brightness = min_brightness
         self._max_brightness = max_brightness
+
+    # ───────────────────────── Config application ─────────────────────────
+
+    def _apply_pending_config(self) -> None:
+        """
+        Drain any LED config queued by the BLE task and apply it.
+
+        Called at the top of every run_led_async loop iteration.
+        DataStorage.pop_led_config() returns None when nothing is pending,
+        making this a cheap no-op in the common case.
+
+        Accepted config keys → setter called:
+            "min_b"  →  set_min_brightness
+            "max_b"  →  set_max_brightness
+            "min_d"  →  set_min_distance_expected
+            "max_d"  →  set_max_distance_expected
+        """
+        cfg = self.common_data_storage.pop_led_config()
+        if cfg is None:
+            return
+
+        for key, setter_name in DataStorage.CONFIG_KEY_MAP.items():
+            if key in cfg:
+                try:
+                    getattr(self, setter_name)(int(cfg[key]))
+                except Exception as e:
+                    print("[LED] Bad config value for '{}': {}".format(key, e))
+
+        print("[LED] Config applied:", cfg)
 
     # ───────────────────────── Internal update logic ─────────────────────────
 
@@ -120,16 +155,31 @@ class LedStripController:
         """
         Async task entry point.
 
-        Loops forever, reading the latest distance from shared storage
-        and updating the LED strip accordingly.  The await gives the
-        sensor coroutine (and any other tasks) CPU time between updates.
+        Each iteration:
+          1. Drain and apply any pending BLE config from DataStorage.
+          2. Read the latest distance from DataStorage.
+          3. Recalculate target brightness.
+          4. Write to the strip only if brightness changed (NeoPixel.write()
+             is slow — skipping unchanged frames keeps 0 ms sleep cheap).
 
         Args:
-            update_interval_ms: Delay between LED refresh cycles (ms).
+            update_interval_ms: Delay between refresh cycles (ms).
+                                 0 = yield-then-immediately-retry for maximum
+                                 LED responsiveness (recommended when the sensor
+                                 task uses a longer sleep interval).
         """
         while True:
+            # 1. Apply any config pushed by the BLE task
+            self._apply_pending_config()
+
+            # 2 & 3. Read distance and recalculate target brightness
             distance = self.common_data_storage.distance_to_person
-            self.update_led_brightness(distance)
+            self._calculate_led_brightness(distance)
+
+            # 4. Only push to strip when brightness actually changed
+            if self.target_led_brightness != self.current_led_brightness:
+                self._set_led_brightness()
+
             await asyncio.sleep_ms(update_interval_ms)
 
     # ───────────────────────── Getters ─────────────────────────
