@@ -40,24 +40,9 @@ def play_audio(filename):
         audio_playing = False
 
 def parse_line(line):
-    # Match specific format: ESP_COLUMN_1-12.34
-    match = re.search(r'ESP_COLUMN_1-(-?\d+\.?\d*)', line)
+    match = re.search(r'[-|](\d+\.?\d*)', line)
     if match:
         return float(match.group(1))
-    
-    # Fallback 1: Any number inside parentheses, e.g. (12.3 cm)
-    paren_match = re.search(r'\(\s*(-?\d+\.?\d*)', line)
-    if paren_match:
-        return float(paren_match.group(1))
-
-    # Fallback 2: Any numerical value after a dash, colon, or space
-    fallback_match = re.search(r'[:=/-]\s*(-?\d+\.?\d*)', line)
-    if fallback_match:
-        try:
-            return float(fallback_match.group(1))
-        except:
-            pass
-            
     return None
 
 def serial_reader_thread():
