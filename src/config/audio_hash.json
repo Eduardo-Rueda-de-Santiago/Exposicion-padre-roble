@@ -1,0 +1,67 @@
+{
+  "backgroundAudio": "example.mp3",
+  "ESP_COLUMN_1": {
+    "audioToPlay": "example1.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_2": {
+    "audioToPlay": "example2.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_3": {
+    "audioToPlay": "example1.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_4": {
+    "audioToPlay": "example2.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_5": {
+    "audioToPlay": "example1.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_6": {
+    "audioToPlay": "example2.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_7": {
+    "audioToPlay": "example1.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  },
+  "ESP_COLUMN_8": {
+    "audioToPlay": "example2.mp3",
+    "volumeToAudio": 100,
+    "minDistanceExpected": 20,
+    "maxDistanceExpected": 150,
+    "minBrightness": 10,
+    "maxBrightess": 200
+  }
+}
