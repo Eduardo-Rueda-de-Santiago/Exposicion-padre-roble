@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peripheral Data | Real-time Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --primary: #00d2ff;
+            --secondary: #3a7bd5;
+            --accent: #ff007a;
+            --text: #e0e0e0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #1a1a2e, var(--bg));
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 1100px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 3rem;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin: 0;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .status {
+            font-size: 0.9rem;
+            color: #888;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #4caf50;
+            border-radius: 50%;
+            box-shadow: 0 0 0 rgba(76, 175, 80, 0.4);
+            animation: pulse 1s infinite;
+        }
+
+        .pulse.disconnected {
+            background: #ff9800;
+            box-shadow: 0 0 0 rgba(255, 152, 0, 0.4);
+            animation: pulseOrange 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        @keyframes pulseOrange {
+            0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 450px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1rem;
+            border-radius: 16px;
+        }
+
+        footer {
+            margin-top: 2rem;
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sensor Analytics</h1>
+            <div class="status" id="status-text">
+                <div class="pulse"></div>
+                Initializing...
+            </div>
+            <div id="readings-count" class="status" style="font-size: 0.75rem; margin-top: 0.25rem;"></div>
+        </header>
+
+        <div class="chart-wrapper">
+            <canvas id="liveChart"></canvas>
+        </div>
+
+        <footer>
+            Real-time synchronization via Flask API
+        </footer>
+    </div>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
