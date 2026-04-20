@@ -54,8 +54,7 @@ _EVT_GATTS_WRITE = const(3)
 # Timing
 # ---------------------------------------------------------------------------
 # How often the distance is sent to the central when connected (ms).
-# 500 ms matches the prototype; lower = more responsive, more radio traffic.
-BLE_NOTIFY_INTERVAL_MS = const(500)
+BLE_NOTIFY_INTERVAL_MS = const(50)
 
 # GAP advertising interval in µs (100 ms)
 _ADV_INTERVAL_US = const(100_000)

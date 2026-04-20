@@ -134,9 +134,9 @@ class MotionSensor:
         if b"\n" not in self.incoming:
             return None
 
-        idx = self.incoming.index(b"\n")
-        raw_line = self.incoming[:idx]
-        self.incoming = self.incoming[idx + 1 :]
+        lines = self.incoming.split(b"\n")
+        self.incoming = lines[-1]
+        raw_line = lines[:-1][-1]
 
         if not raw_line:
             return None
@@ -145,7 +145,6 @@ class MotionSensor:
         if decoded_line is None:
             return None
 
-        print(decoded_line)
         return self._extract_distance_from_line(decoded_line)
 
     def _decode_sensor_data(self, raw_line: bytes) -> str | None:
@@ -216,6 +215,7 @@ class MotionSensor:
             and self.continuous_fails % 100 == 0
         ):
             self.common_data_storage.set_sensor_failing_state(True)
+            self._set_sensor_normal_reading_mode()
 
     # ───────────────────────── Async entry point ─────────────────────────
 

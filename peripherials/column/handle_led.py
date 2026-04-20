@@ -34,7 +34,7 @@ class LedStripController:
         led_num: int = DEFAULT_LED_NUMBER,
         min_distance_expected: int = 50,
         max_distance_expected: int = 250,
-        min_brightness: int = 0,
+        min_brightness: int = 10,
         max_brightness: int = 255,
     ) -> None:
         """
@@ -53,8 +53,8 @@ class LedStripController:
         self.led_strip = neopixel.NeoPixel(machine.Pin(pin), led_num)
         self.common_data_storage = common_data_storage
 
-        self.current_led_brightness: int = 0
-        self.target_led_brightness: int = 0
+        self.current_led_brightness: int = min_brightness
+        self.target_led_brightness: int = min_brightness
 
         self._min_distance_expected = min_distance_expected
         self._max_distance_expected = max_distance_expected
@@ -136,16 +136,6 @@ class LedStripController:
         )
 
         self.target_led_brightness = self.bound_brightness(int(brightness))
-
-    def update_led_brightness(self, distance_to_person: int) -> None:
-        """
-        Compute brightness from distance and immediately apply it to the strip.
-
-        Args:
-            distance_to_person: Measured distance in cm.
-        """
-        self._calculate_led_brightness(distance_to_person)
-        self._set_led_brightness()
 
     # ───────────────────────── Async entry point ─────────────────────────
 
