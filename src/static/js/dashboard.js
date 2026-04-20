@@ -9,7 +9,6 @@ async function fetchStatus() {
         const status = await response.json();
 
         const statusEl = document.getElementById('status-text');
-        const sensorEl = document.getElementById('sensor-list');
 
         if (statusEl) {
             if (status.serial_connected) {
