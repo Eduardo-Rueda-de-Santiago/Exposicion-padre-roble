@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peripheral Data | Real-time Dashboard</title>
+    <title>Padre Roble | Control Center</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
@@ -15,62 +15,92 @@
             --primary: #00d2ff;
             --secondary: #3a7bd5;
             --accent: #ff007a;
+            --success: #4caf50;
+            --warning: #ff9800;
             --text: #e0e0e0;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             font-family: 'Outfit', sans-serif;
             background: radial-gradient(circle at top right, #1a1a2e, var(--bg));
             color: var(--text);
             margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow-x: hidden;
         }
 
         .container {
-            width: 90%;
-            max-width: 1100px;
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            padding: 3rem;
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 1s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            width: 95%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
         }
 
         header {
             text-align: center;
-            margin-bottom: 3rem;
+            margin-bottom: 2rem;
         }
 
         h1 {
             font-size: 2.5rem;
             font-weight: 600;
-            margin: 0;
+            margin: 0 0 0.5rem 0;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             letter-spacing: -1px;
         }
 
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        .tab {
+            padding: 0.75rem 2rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: inherit;
+            color: var(--text);
+            transition: all 0.2s;
+        }
+
+        .tab:hover { background: rgba(255,255,255,0.08); }
+        .tab.active {
+            background: rgba(0, 210, 255, 0.15);
+            border-color: var(--primary);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .section {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .section h2 {
+            margin: 0 0 1.5rem 0;
+            font-size: 1.25rem;
+            color: var(--primary);
+        }
+
         .status {
             font-size: 0.9rem;
             color: #888;
-            margin-top: 0.5rem;
             display: flex;
             align-items: center;
-            justify-content: center;
             gap: 0.5rem;
         }
 
@@ -84,7 +114,7 @@
         }
 
         .pulse.disconnected {
-            background: #ff9800;
+            background: var(--warning);
             box-shadow: 0 0 0 rgba(255, 152, 0, 0.4);
             animation: pulseOrange 1s infinite;
         }
@@ -103,40 +133,265 @@
 
         .chart-wrapper {
             position: relative;
-            height: 450px;
-            width: 100%;
+            height: 350px;
             background: rgba(0, 0, 0, 0.2);
             padding: 1rem;
             border-radius: 16px;
         }
 
-        footer {
-            margin-top: 2rem;
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .screen-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .screen-card h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+
+        .screen-card .video-name {
             font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 0.75rem;
+            min-height: 1.5rem;
+        }
+
+        .screen-card .state {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 0.75rem;
+        }
+
+        .state.stopped { background: rgba(255,152,0,0.2); color: var(--warning); }
+        .state.playing { background: rgba(76,175,80,0.2); color: var(--success); }
+        .state.paused { background: rgba(0,210,255,0.2); color: var(--primary); }
+        .state.error { background: rgba(255,0,122,0.2); color: var(--accent); }
+
+        .controls {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-family: inherit;
+            color: var(--text);
+            transition: all 0.15s;
+        }
+
+        .btn:hover { background: rgba(255,255,255,0.1); }
+        .btn:active { transform: scale(0.97); }
+
+        .btn-play { background: rgba(76,175,80,0.2); border-color: var(--success); }
+        .btn-play:hover { background: rgba(76,175,80,0.3); }
+
+        .btn-pause { background: rgba(0,210,255,0.2); border-color: var(--primary); }
+        .btn-pause:hover { background: rgba(0,210,255,0.3); }
+
+        .btn-stop { background: rgba(255,152,0,0.2); border-color: var(--warning); }
+        .btn-stop:hover { background: rgba(255,152,0,0.3); }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            padding: 1rem 3rem;
+            font-size: 1.1rem;
+            border-radius: 12px;
+        }
+
+        .btn-primary:hover { opacity: 0.9; }
+
+        .global-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .videos-info {
+            font-size: 0.85rem;
             color: #666;
             text-align: center;
+            margin-top: 1rem;
+        }
+
+        footer {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 2rem;
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Sensor Analytics</h1>
-            <div class="status" id="status-text">
-                <div class="pulse"></div>
-                Initializing...
-            </div>
-            <div id="readings-count" class="status" style="font-size: 0.75rem; margin-top: 0.25rem;"></div>
+            <h1>Padre Roble</h1>
         </header>
 
-        <div class="chart-wrapper">
-            <canvas id="liveChart"></canvas>
+        <div class="tabs">
+            <button class="tab active" data-tab="video">Video</button>
+            <button class="tab" data-tab="sensors">Sensors</button>
+        </div>
+
+        <div id="tab-video" class="tab-content active">
+            <div class="section">
+                <h2>Display Screens</h2>
+                <div class="video-grid">
+                    <div class="screen-card" id="screen-0">
+                        <h3>Screen 1</h3>
+                        <div class="video-name" id="video-name-0">-</div>
+                        <span class="state stopped" id="state-0">Stopped</span>
+                        <div class="controls">
+                            <button class="btn btn-play" onclick="playScreen(0)">Play</button>
+                            <button class="btn btn-pause" onclick="pauseScreen(0)">Pause</button>
+                            <button class="btn btn-stop" onclick="stopScreen(0)">Stop</button>
+                        </div>
+                    </div>
+                    <div class="screen-card" id="screen-1">
+                        <h3>Screen 2</h3>
+                        <div class="video-name" id="video-name-1">-</div>
+                        <span class="state stopped" id="state-1">Stopped</span>
+                        <div class="controls">
+                            <button class="btn btn-play" onclick="playScreen(1)">Play</button>
+                            <button class="btn btn-pause" onclick="pauseScreen(1)">Pause</button>
+                            <button class="btn btn-stop" onclick="stopScreen(1)">Stop</button>
+                        </div>
+                    </div>
+                    <div class="screen-card" id="screen-2">
+                        <h3>Screen 3</h3>
+                        <div class="video-name" id="video-name-2">-</div>
+                        <span class="state stopped" id="state-2">Stopped</span>
+                        <div class="controls">
+                            <button class="btn btn-play" onclick="playScreen(2)">Play</button>
+                            <button class="btn btn-pause" onclick="pauseScreen(2)">Pause</button>
+                            <button class="btn btn-stop" onclick="stopScreen(2)">Stop</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Master Controls</h2>
+                <div class="global-controls">
+                    <button class="btn btn-primary" onclick="playAll()">Play All</button>
+                    <button class="btn btn-pause" onclick="pauseAll()">Pause All</button>
+                    <button class="btn btn-stop" onclick="stopAll()">Stop All</button>
+                </div>
+                <div class="videos-info" id="videos-info">
+                    Videos: scanning...
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-sensors" class="tab-content">
+            <div class="section">
+                <h2>Sensor Data</h2>
+                <div class="status" id="status-text">
+                    <div class="pulse"></div>
+                    Initializing...
+                </div>
+                <div id="readings-count" class="status" style="font-size: 0.75rem; margin-top: 0.25rem;"></div>
+                <div class="chart-wrapper">
+                    <canvas id="liveChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <footer>
-            Real-time synchronization via Flask API
+            Padre Roble Exposition System
         </footer>
     </div>
+
     <script src="/static/js/dashboard.js"></script>
+    <script>
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        async function fetchVideoStatus() {
+            try {
+                const res = await fetch('/api/video/status');
+                const data = await res.json();
+
+                for (let i = 0; i < 3; i++) {
+                    const screen = data.screens[i];
+                    if (screen) {
+                        document.getElementById('state-' + i).className = 'state ' + screen.state;
+                        document.getElementById('state-' + i).textContent = screen.state.charAt(0).toUpperCase() + screen.state.slice(1);
+                        document.getElementById('video-name-' + i).textContent = screen.video ? screen.video.split('/').pop() : '-';
+                    }
+                }
+
+                const videos = data.videos || [];
+                document.getElementById('videos-info').textContent =
+                    `Videos folder: ${data.videos_dir} — ${videos.length} video(s) found`;
+            } catch (e) {
+                console.error('Video status error:', e);
+            }
+        }
+
+        async function playAll() {
+            await fetch('/api/video/play-all', { method: 'POST' });
+            fetchVideoStatus();
+        }
+
+        async function pauseAll() {
+            await fetch('/api/video/pause-all', { method: 'POST' });
+            fetchVideoStatus();
+        }
+
+        async function stopAll() {
+            await fetch('/api/video/stop-all', { method: 'POST' });
+            fetchVideoStatus();
+        }
+
+        async function playScreen(id) {
+            await fetch(`/api/video/screen/${id}/play`, { method: 'POST' });
+            fetchVideoStatus();
+        }
+
+        async function pauseScreen(id) {
+            const state = document.getElementById('state-' + id).textContent.toLowerCase();
+            if (state === 'playing') {
+                await fetch(`/api/video/screen/${id}/pause`, { method: 'POST' });
+            } else {
+                await fetch(`/api/video/screen/${id}/resume`, { method: 'POST' });
+            }
+            fetchVideoStatus();
+        }
+
+        async function stopScreen(id) {
+            await fetch(`/api/video/screen/${id}/stop`, { method: 'POST' });
+            fetchVideoStatus();
+        }
+
+        setInterval(fetchVideoStatus, 1000);
+        fetchVideoStatus();
+    </script>
 </body>
 </html>
