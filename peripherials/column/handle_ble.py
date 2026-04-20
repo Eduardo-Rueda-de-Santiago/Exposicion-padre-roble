@@ -179,7 +179,8 @@ class BLEPeripheral:
         """
         if not self._connected or self._conn_handle is None:
             return
-        payload = "{:.2f}".format(distance).encode("utf-8")
+
+        payload = (self._name + "|" + "{:.2f}".format(distance)).encode("utf-8")
         self._ble.gatts_notify(self._conn_handle, self._handle_distance, payload)
 
     # ───────────────────────── Async task ─────────────────────────
