@@ -1,29 +1,32 @@
-import machine
-import neopixel
 import uasyncio as asyncio
 from common_data_storage import DataStorage
+from machine import PWM, Pin
 
-DEFAULT_LED_PIN = 21
-DEFAULT_LED_NUMBER = 200
+DEFAULT_LED_PIN = 22
+DEFAULT_PWM_FREQ = 1000  # Hz — avoids flicker on standard LEDs
 
 # How often the LED task checks shared storage for a new distance (ms).
 # 0 = yield once to scheduler then immediately retry (maximum responsiveness).
 DEFAULT_LED_UPDATE_INTERVAL_MS = 0
 
+# PWM duty cycle range (MicroPython: 0–1023)
+PWM_MIN = 0
+PWM_MAX = 1023
+
 
 class LedStripController:
     """
-    Controls a NeoPixel LED strip and maps distance measurements
+    Controls a single PWM LED and maps distance measurements
     (read from a shared DataStorage) to brightness levels using
     linear interpolation.
 
     Brightness mapping:
-        distance <= min_distance_expected  →  max_brightness
-        distance >= max_distance_expected  →  min_brightness
+        distance <= min_distance_expected  →  max_brightness (PWM duty)
+        distance >= max_distance_expected  →  min_brightness (PWM duty)
         in between                         →  linear interpolation
 
     LED config (min/max brightness, min/max distance) can be updated at
-    runtime by the BLE task via DataStorage.queue_led_config().  The LED
+    runtime by the BLE task via DataStorage.queue_led_config(). The LED
     task drains the pending config at the top of every loop iteration.
     """
 
@@ -31,26 +34,26 @@ class LedStripController:
         self,
         common_data_storage: DataStorage,
         pin: int = DEFAULT_LED_PIN,
-        led_num: int = DEFAULT_LED_NUMBER,
+        pwm_freq: int = DEFAULT_PWM_FREQ,
         min_distance_expected: int = 50,
         max_distance_expected: int = 250,
         min_brightness: int = 10,
-        max_brightness: int = 255,
+        max_brightness: int = PWM_MAX,
     ) -> None:
         """
-        Initialize LED strip controller.
+        Initialize PWM LED controller.
 
         Args:
             common_data_storage:   Shared storage — distance is read from here,
                                    pending BLE config is drained here.
-            pin:                   GPIO pin connected to the LED strip data line.
-            led_num:               Number of LEDs in the strip.
+            pin:                   GPIO pin connected to the LED.
+            pwm_freq:              PWM frequency in Hz (1000 Hz recommended).
             min_distance_expected: Distance (cm) that maps to max brightness.
             max_distance_expected: Distance (cm) that maps to min brightness.
-            min_brightness:        Minimum brightness value (0–255).
-            max_brightness:        Maximum brightness value (0–255).
+            min_brightness:        Minimum PWM duty cycle (0–1023).
+            max_brightness:        Maximum PWM duty cycle (0–1023).
         """
-        self.led_strip = neopixel.NeoPixel(machine.Pin(pin), led_num)
+        self.led = PWM(Pin(pin), freq=pwm_freq)
         self.common_data_storage = common_data_storage
 
         self.current_led_brightness: int = min_brightness
@@ -60,6 +63,9 @@ class LedStripController:
         self._max_distance_expected = max_distance_expected
         self._min_brightness = min_brightness
         self._max_brightness = max_brightness
+
+        # Apply initial brightness
+        self.led.duty(self.current_led_brightness)
 
     # ───────────────────────── Config application ─────────────────────────
 
@@ -94,23 +100,14 @@ class LedStripController:
 
     def _set_led_brightness(self) -> None:
         """
-        Apply target_led_brightness to every LED in the strip and push
-        the update over the data wire.
+        Apply target_led_brightness as a PWM duty cycle to the LED.
         """
         self.current_led_brightness = self.target_led_brightness
-
-        for i in range(len(self.led_strip)):
-            self.led_strip[i] = (
-                self.current_led_brightness,
-                self.current_led_brightness,
-                self.current_led_brightness,
-            )
-
-        self.led_strip.write()
+        self.led.duty(self.current_led_brightness)
 
     def _calculate_led_brightness(self, distance_to_person: int) -> None:
         """
-        Convert a distance measurement into a target brightness value and
+        Convert a distance measurement into a target PWM duty cycle and
         store it in self.target_led_brightness.
 
         Args:
@@ -149,14 +146,13 @@ class LedStripController:
           1. Drain and apply any pending BLE config from DataStorage.
           2. Read the latest distance from DataStorage.
           3. Recalculate target brightness.
-          4. Write to the strip only if brightness changed (NeoPixel.write()
-             is slow — skipping unchanged frames keeps 0 ms sleep cheap).
+          4. Update PWM duty only if brightness changed (avoids redundant
+             writes when update_interval_ms is 0).
 
         Args:
             update_interval_ms: Delay between refresh cycles (ms).
                                  0 = yield-then-immediately-retry for maximum
-                                 LED responsiveness (recommended when the sensor
-                                 task uses a longer sleep interval).
+                                 LED responsiveness.
         """
         while True:
             # 1. Apply any config pushed by the BLE task
@@ -166,7 +162,7 @@ class LedStripController:
             distance = self.common_data_storage.distance_to_person
             self._calculate_led_brightness(distance)
 
-            # 4. Only push to strip when brightness actually changed
+            # 4. Only update PWM when brightness actually changed
             if self.target_led_brightness != self.current_led_brightness:
                 self._set_led_brightness()
 
@@ -183,59 +179,55 @@ class LedStripController:
         return self._max_distance_expected
 
     def get_min_brightness(self) -> int:
-        """Return configured minimum brightness."""
+        """Return configured minimum PWM duty cycle."""
         return self._min_brightness
 
     def get_max_brightness(self) -> int:
-        """Return configured maximum brightness."""
+        """Return configured maximum PWM duty cycle."""
         return self._max_brightness
 
     def get_current_led_brightness(self) -> int:
-        """Return the brightness value currently applied to the strip."""
+        """Return the PWM duty cycle currently applied to the LED."""
         return self.current_led_brightness
 
     def get_target_led_brightness(self) -> int:
         """Return the computed target brightness (before the next write)."""
         return self.target_led_brightness
 
-    def get_led_count(self) -> int:
-        """Return the number of LEDs in the strip."""
-        return len(self.led_strip)
-
     # ───────────────────────── Setters ─────────────────────────
 
     def bound_brightness(self, brightness: int) -> int:
         """
-        Clamp a brightness value to the valid 0–255 PWM range.
+        Clamp a brightness value to the valid PWM duty cycle range (0–1023).
 
         Args:
             brightness: Raw brightness value.
 
         Returns:
-            Clamped value in [0, 255].
+            Clamped value in [0, 1023].
         """
-        if brightness > 255:
-            return 255
-        if brightness < 0:
-            return 0
+        if brightness > PWM_MAX:
+            return PWM_MAX
+        if brightness < PWM_MIN:
+            return PWM_MIN
         return brightness
 
     def set_min_brightness(self, min_brightness: int) -> None:
         """
-        Update the minimum brightness limit (clamped to 0–255).
+        Update the minimum brightness limit (clamped to 0–1023).
 
         Args:
-            min_brightness: New minimum brightness.
+            min_brightness: New minimum PWM duty cycle.
         """
         if min_brightness is not None:
             self._min_brightness = self.bound_brightness(min_brightness)
 
     def set_max_brightness(self, max_brightness: int) -> None:
         """
-        Update the maximum brightness limit (clamped to 0–255).
+        Update the maximum brightness limit (clamped to 0–1023).
 
         Args:
-            max_brightness: New maximum brightness.
+            max_brightness: New maximum PWM duty cycle.
         """
         if max_brightness is not None:
             self._max_brightness = self.bound_brightness(max_brightness)

@@ -39,7 +39,7 @@ from handle_sensor import MotionSensor
 # ---------------------------------------------------------------------------
 # Board identity — increment per physical column
 # ---------------------------------------------------------------------------
-COLUMN_NUMBER = 1
+COLUMN_NUMBER = 4
 DEVICE_NAME = "ESP_COLUMN_{}".format(COLUMN_NUMBER)
 
 
@@ -57,9 +57,9 @@ async def main() -> None:
     # as soon as the central connects and sends a config write.
     led_controller = LedStripController(
         ds,
-        min_distance_expected=50,
-        max_distance_expected=250,
-        min_brightness=0,
+        min_distance_expected=5,
+        max_distance_expected=50,
+        min_brightness=10,
         max_brightness=255,
     )
 
