@@ -10,3 +10,8 @@ dependencies = [
     "pyserial==3.5",
     "simpleaudio==1.0.4",
 ]
+
+[tool.uv.workspace]
+members = [
+    "examples/song_overlap_python",
+]

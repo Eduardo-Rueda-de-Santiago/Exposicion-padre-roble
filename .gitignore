@@ -11,3 +11,4 @@ wheels/
 
 **/node_modules/
 src/data.db
+examples/song_overlap_python/audios/
