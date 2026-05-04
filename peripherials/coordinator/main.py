@@ -550,7 +550,7 @@ async def main() -> None:
     asyncio.create_task(serial_read_task())
 
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(10)
 
 
 asyncio.run(main())
