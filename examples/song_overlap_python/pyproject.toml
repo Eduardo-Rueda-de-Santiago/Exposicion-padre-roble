@@ -3,7 +3,7 @@ name = "song-overlap-python"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "numpy>=2.4.4",
     "sounddevice>=0.5.5",
