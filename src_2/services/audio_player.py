@@ -1,6 +1,7 @@
 import threading
 import time
 import os
+import json
 
 import numpy as np
 try:
@@ -158,12 +159,32 @@ class AudioService:
     def __init__(self):
         # We start with empty files or default ones if they exist
         audios_dir = os.path.join(os.path.dirname(__file__), "..", "audios")
+        config_path = os.path.join(os.path.dirname(__file__), "..", "config", "sensor_audio_map.json")
+        
+        self.sensor_to_track_idx = {}
         files = []
-        for i in range(1, 10):
-            # Try to add audio tracks 1 to 9
-            f = os.path.join(audios_dir, f"Audio_track_{i}.wav")
-            if os.path.exists(f):
-                files.append(f)
+        
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+                
+            bg_file = os.path.join(audios_dir, config.get("background_audio", ""))
+            if os.path.exists(bg_file):
+                files.append(bg_file)
+            else:
+                print(f"[AudioService] Warning: Background audio {bg_file} not found.")
+                
+            sensors = config.get("sensors", {})
+            for sensor_id, data in sensors.items():
+                audio_file = os.path.join(audios_dir, data.get("audio_file", ""))
+                if os.path.exists(audio_file):
+                    files.append(audio_file)
+                    self.sensor_to_track_idx[sensor_id] = len(files) - 1
+                else:
+                    print(f"[AudioService] Warning: Audio file {audio_file} for {sensor_id} not found.")
+                    
+        except Exception as e:
+            print(f"[AudioService] Error loading config: {e}")
         
         # If no files, we just disable audio
         self.engine = RemixEngine(
@@ -183,12 +204,15 @@ class AudioService:
     def stop(self):
         self.engine.stop()
 
-    def trigger_column(self, column_index: int):
-        # We decouple column index from track idx, but right now a basic mapping:
-        # column 1 -> track 1
-        # If column_index is beyond tracks, we use modulo to wrap around
+    def trigger_sensor(self, sensor_id: str):
         if self.engine.n_tracks > 1:
-            track_idx = (column_index % (self.engine.n_tracks - 1)) + 1
-            self.engine.trigger(track_idx)
+            track_idx = self.sensor_to_track_idx.get(sensor_id)
+            if track_idx is not None:
+                self.engine.trigger(track_idx)
+
+    def trigger_column(self, column_index: int):
+        # Fallback for old code if needed
+        sensor_id = f"ESP_COLUMN_{column_index}"
+        self.trigger_sensor(sensor_id)
 
 audio_service = AudioService()
