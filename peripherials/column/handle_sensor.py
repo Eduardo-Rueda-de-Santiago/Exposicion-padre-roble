@@ -83,6 +83,7 @@ class MotionSensor:
             bits=8,
             parity=None,
             stop=1,
+            rxbuf=1024,  # Larger HW buffer — default 256 bytes fills in ~2 s at 10 Hz
         )
 
         self.common_data_storage = common_data_storage
@@ -109,15 +110,39 @@ class MotionSensor:
         """Send the initialization command that enables continuous measurement."""
         self._send_hex_data(INIT_HEX)
 
+    def _flush_uart_buffer(self) -> None:
+        """
+        Discard every byte currently sitting in the UART RX hardware buffer
+        and reset the software accumulator.
+
+        Called once after the init command so that any data the sensor emitted
+        during the MicroPython boot sequence (before this task had a chance to
+        run) is thrown away.  Without this flush the first several BLE
+        notifications would carry distances that are seconds out of date.
+        """
+        while self.uart.any():
+            self.uart.read(self.uart.any())
+        self.incoming = bytearray()
+
     # ───────────────────────── Data parsing ─────────────────────────
 
     def _read_sensor_data(self) -> int | None:
         """
-        Drain the UART buffer, process the first complete line found,
-        and return a distance value if one can be parsed.
+        Drain the UART buffer, process every complete line found, and return
+        the most recent distance value.
 
         Returns:
             Distance in cm, or None if no complete/valid line is available yet.
+
+        Why we scan all lines instead of just the last one
+        ────────────────────────────────────────────────────
+        The HMMD sensor interleaves "Range XXX" measurements with "ON"
+        heartbeat lines.  When several lines arrive between polls the original
+        approach of taking only ``lines[:-1][-1]`` (the last complete line)
+        would almost always see an "ON" line and silently discard the "Range"
+        reading that preceded it, causing DataStorage to go many seconds
+        without a real distance update.  Scanning every line and keeping the
+        most recent non-None result fixes that.
         """
         n = self.uart.any()
         if not n:
@@ -129,23 +154,31 @@ class MotionSensor:
 
         self.incoming += chunk
 
-        # Process the first complete newline-terminated line in the buffer.
-        # Remaining bytes stay in self.incoming for the next poll cycle.
+        # Safety valve: if the accumulator grows unreasonably large something
+        # is badly wrong — reset rather than parse a giant malformed blob.
+        if len(self.incoming) > 512:
+            self.incoming = bytearray()
+            return None
+
         if b"\n" not in self.incoming:
             return None
 
         lines = self.incoming.split(b"\n")
-        self.incoming = lines[-1]
-        raw_line = lines[:-1][-1]
+        self.incoming = lines[-1]  # Keep the trailing incomplete fragment
 
-        if not raw_line:
-            return None
+        # Scan every complete line; keep the most recent valid distance.
+        latest_distance = None
+        for raw_line in lines[:-1]:
+            if not raw_line:
+                continue
+            decoded_line = self._decode_sensor_data(raw_line)
+            if decoded_line is None:
+                continue
+            distance = self._extract_distance_from_line(decoded_line)
+            if distance is not None:
+                latest_distance = distance
 
-        decoded_line = self._decode_sensor_data(raw_line)
-        if decoded_line is None:
-            return None
-
-        return self._extract_distance_from_line(decoded_line)
+        return latest_distance
 
     def _decode_sensor_data(self, raw_line: bytes) -> str | None:
         """
@@ -223,7 +256,8 @@ class MotionSensor:
         """
         Async task entry point.
 
-        Initializes the sensor, then loops forever:
+        Initializes the sensor, flushes any data that accumulated in the UART
+        hardware buffer during the MicroPython boot sequence, then loops forever:
         - Reads available data from UART.
         - On success: writes the distance to shared storage and clears
           the failure counter.
@@ -232,6 +266,13 @@ class MotionSensor:
           (e.g. the LED coroutine) get CPU time.
         """
         self._set_sensor_normal_reading_mode()
+
+        # Give the sensor ~100 ms to acknowledge the init command, then
+        # discard everything that arrived during boot.  Without this flush
+        # the first reads drain stale data that is several seconds old.
+        await asyncio.sleep_ms(100)
+        self._flush_uart_buffer()
+        print("[Sensor] UART buffer flushed — starting fresh reads")
 
         while True:
             try:

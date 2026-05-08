@@ -39,16 +39,20 @@ from handle_sensor import MotionSensor
 # ---------------------------------------------------------------------------
 # Board identity — increment per physical column
 # ---------------------------------------------------------------------------
-COLUMN_NUMBER = 4
+COLUMN_NUMBER = 2  
 DEVICE_NAME = "ESP_COLUMN_{}".format(COLUMN_NUMBER)
+
 
 async def main() -> None:
     # ── Shared state ────────────────────────────────────────────────────────
     ds = DataStorage()
 
     # ── Sensor task ─────────────────────────────────────────────────────────
-    # Reads mmWave UART, writes ds.distance_to_person every ~50 ms.
-    sensor = MotionSensor(ds, sensor_reading_wait_ms=50)
+    # Reads mmWave UART, writes ds.distance_to_person.
+    # 10 ms poll keeps DataStorage fresh without starving other tasks;
+    # the LED task and BLE task each yield voluntarily so the scheduler
+    # cycles through all three well within one BLE notify interval.
+    sensor = MotionSensor(ds, sensor_reading_wait_ms=10)
 
     # ── LED task ─────────────────────────────────────────────────────────────
     # Reads ds.distance_to_person and any pending BLE config every loop tick.
@@ -56,9 +60,9 @@ async def main() -> None:
     # as soon as the central connects and sends a config write.
     led_controller = LedStripController(
         ds,
-        min_distance_expected=5,
-        max_distance_expected=50,
-        min_brightness=10,
+        min_distance_expected=40,
+        max_distance_expected=400,
+        min_brightness=0,
         max_brightness=255,
     )
 
