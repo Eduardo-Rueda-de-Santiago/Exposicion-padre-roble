@@ -42,7 +42,6 @@ from handle_sensor import MotionSensor
 COLUMN_NUMBER = 4
 DEVICE_NAME = "ESP_COLUMN_{}".format(COLUMN_NUMBER)
 
-
 async def main() -> None:
     # ── Shared state ────────────────────────────────────────────────────────
     ds = DataStorage()

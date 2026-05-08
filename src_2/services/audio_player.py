@@ -84,8 +84,20 @@ class RemixEngine:
         with self._lock:
             self._solo_timers[track_idx] = timer
 
+    def clear_all_triggers(self) -> None:
+        if self.n_tracks == 0:
+            return
+        with self._lock:
+            for timer in self._solo_timers.values():
+                timer.cancel()
+            self._solo_timers.clear()
+            self._active_tracks.clear()
+            self._push_targets()
+
     def start(self):
         if self.n_tracks == 0 or not sd:
+            return self
+        if self._stream is not None:
             return self
         channels = self.data[0].shape[1]
         self._stream = sd.OutputStream(
@@ -157,7 +169,11 @@ class RemixEngine:
 
 class AudioService:
     def __init__(self):
-        # We start with empty files or default ones if they exist
+        self.sensor_to_track_idx = {}
+        self.engine = None
+        self._load_engine()
+
+    def _load_engine(self):
         audios_dir = os.path.join(os.path.dirname(__file__), "..", "audios")
         config_path = os.path.join(os.path.dirname(__file__), "..", "config", "sensor_audio_map.json")
         
@@ -186,7 +202,6 @@ class AudioService:
         except Exception as e:
             print(f"[AudioService] Error loading config: {e}")
         
-        # If no files, we just disable audio
         self.engine = RemixEngine(
             files=files,
             base_fg_vol=1.0,
@@ -198,11 +213,26 @@ class AudioService:
             solo_duration=5.0,
         )
 
+    def reload_config(self):
+        print("[AudioService] Reloading audio configuration...")
+        was_playing = self.engine is not None and self.engine._stream is not None
+        if self.engine:
+            self.stop()
+        self._load_engine()
+        if was_playing:
+            self.start()
+
     def start(self):
-        self.engine.start()
+        if self.engine:
+            self.engine.start()
 
     def stop(self):
-        self.engine.stop()
+        if self.engine:
+            self.engine.stop()
+
+    def clear_all_triggers(self):
+        if self.engine:
+            self.engine.clear_all_triggers()
 
     def trigger_sensor(self, sensor_id: str):
         if self.engine.n_tracks > 1:

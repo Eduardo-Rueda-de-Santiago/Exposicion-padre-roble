@@ -172,8 +172,9 @@ async function fetchData() {
 
     if (!data || data.length === 0) return;
 
-    if (data.length === lastDataCount[activeSensor]) return;
-    lastDataCount[activeSensor] = data.length;
+    const latestTimestamp = data[data.length - 1].timestamp;
+    if (latestTimestamp === lastDataCount[activeSensor]) return;
+    lastDataCount[activeSensor] = latestTimestamp;
 
     ensureChart(activeSensor);
     const chart = charts[activeSensor];
@@ -194,8 +195,107 @@ async function fetchData() {
   }
 }
 
+let currentSensorConfig = null;
+
+async function loadSensorConfig() {
+    try {
+        const res = await fetch('/api/sensors/config');
+        currentSensorConfig = await res.json();
+        renderSensorConfig();
+    } catch (e) {
+        console.error('Failed to load sensor config:', e);
+        const container = document.getElementById('sensor-config-container');
+        if (container) container.innerHTML = '<div style="color: var(--accent);">Error loading config</div>';
+    }
+}
+
+function renderSensorConfig() {
+    const container = document.getElementById('sensor-config-container');
+    if (!container || !currentSensorConfig) return;
+
+    let html = `
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px;">
+            <label style="color: var(--primary); font-size: 0.9rem;">Background Audio</label>
+            <input type="text" id="cfg-bg-audio" value="${currentSensorConfig.background_audio || ''}" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.5); color: white; font-family: inherit;">
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+    `;
+
+    for (let i = 1; i <= 8; i++) {
+        const colId = `ESP_COLUMN_${i}`;
+        const data = currentSensorConfig.sensors ? currentSensorConfig.sensors[colId] || {} : {};
+        html += `
+            <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 12px; display: flex; flex-direction: column; gap: 0.5rem;">
+                <h3 style="margin: 0; font-size: 1rem; color: var(--text);">${colId}</h3>
+                
+                <label style="color: #888; font-size: 0.8rem; margin-top: 0.5rem;">Audio File</label>
+                <input type="text" id="cfg-audio-${colId}" value="${data.audio_file || ''}" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.5); color: white; font-family: inherit;">
+                
+                <label style="color: #888; font-size: 0.8rem; margin-top: 0.5rem;">Min Distance (cm)</label>
+                <input type="number" step="0.1" id="cfg-dist-${colId}" value="${data.min_distance || 40.0}" style="padding: 0.5rem; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.5); color: white; font-family: inherit;">
+            </div>
+        `;
+    }
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+async function saveSensorConfig() {
+    if (!currentSensorConfig) return;
+
+    const btn = document.querySelector('button[onclick="saveSensorConfig()"]');
+    if (btn) {
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
+    }
+
+    currentSensorConfig.background_audio = document.getElementById('cfg-bg-audio').value;
+    if (!currentSensorConfig.sensors) currentSensorConfig.sensors = {};
+    
+    for (let i = 1; i <= 8; i++) {
+        const colId = `ESP_COLUMN_${i}`;
+        if (!currentSensorConfig.sensors[colId]) currentSensorConfig.sensors[colId] = {};
+        currentSensorConfig.sensors[colId].audio_file = document.getElementById(`cfg-audio-${colId}`).value;
+        currentSensorConfig.sensors[colId].min_distance = parseFloat(document.getElementById(`cfg-dist-${colId}`).value);
+    }
+
+    try {
+        const res = await fetch('/api/sensors/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(currentSensorConfig)
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+            if (btn) {
+                btn.textContent = 'Saved!';
+                btn.style.background = 'var(--success)';
+                setTimeout(() => {
+                    btn.textContent = 'Save Configuration';
+                    btn.style.background = '';
+                    btn.disabled = false;
+                }, 2000);
+            }
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (e) {
+        console.error('Save failed:', e);
+        if (btn) {
+            btn.textContent = 'Error';
+            btn.style.background = 'var(--accent)';
+            setTimeout(() => {
+                btn.textContent = 'Save Configuration';
+                btn.style.background = '';
+                btn.disabled = false;
+            }, 2000);
+        }
+    }
+}
+
 async function init() {
   await fetchStatus();
+  await loadSensorConfig();
 }
 
 init();

@@ -27,21 +27,6 @@ async def play_all(req: PlayAllRequest = None):
     video_service.play_all(videos)
     return {"status": "playing"}
 
-@video_router.post("/pause-all")
-async def pause_all():
-    video_service.pause_all()
-    return {"status": "paused"}
-
-@video_router.post("/resume-all")
-async def resume_all():
-    video_service.resume_all()
-    return {"status": "playing"}
-
-@video_router.post("/stop-all")
-async def stop_all():
-    video_service.stop_all()
-    return {"status": "stopped"}
-
 @video_router.post("/screen/{screen_id}/play")
 async def play_screen(screen_id: int, req: ScreenPlayRequest = None):
     video = req.video if req else None

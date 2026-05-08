@@ -17,7 +17,6 @@ async def lifespan(app: FastAPI):
     # Startup
     print("[WEB] Initializing application services...")
     db_service.init_db()
-    audio_service.start()
     serial_reader_service.start()
     yield
     # Shutdown

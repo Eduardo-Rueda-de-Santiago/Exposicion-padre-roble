@@ -5,6 +5,7 @@ from routes.sensor_routes import sensor_router
 from routes.video_routes import video_router
 from services.database import db_service
 from services.video_player import video_service
+from services.audio_player import audio_service
 
 api_router = APIRouter(prefix="/api")
 
@@ -45,3 +46,28 @@ async def full_status():
         "latest": latest,
         "video": vm_status,
     }
+
+@api_router.post("/trigger-all", tags=["Global"])
+async def trigger_all():
+    """
+    Triggers all videos and all audio columns simultaneously.
+    """
+    video_service.play_all()
+    audio_service.start()
+    for i in range(1, 9):
+        audio_service.trigger_column(i)
+    return {"status": "triggered_all"}
+
+@api_router.post("/pause-all", tags=["Global"])
+async def pause_all():
+    """Pauses all videos and clears all audio triggers."""
+    video_service.pause_all()
+    audio_service.stop()
+    return {"status": "paused_all"}
+
+@api_router.post("/stop-all", tags=["Global"])
+async def stop_all():
+    """Stops all videos and clears all audio triggers."""
+    video_service.stop_all()
+    audio_service.stop()
+    return {"status": "stopped_all"}

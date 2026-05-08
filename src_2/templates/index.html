@@ -295,6 +295,7 @@
                 <h2>Master Controls</h2>
                 <div class="global-controls">
                     <button class="btn btn-primary" onclick="playAll()">Play All</button>
+                    <button class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent), var(--secondary));" onclick="triggerAllMedia()">Trigger Audio & Video</button>
                     <button class="btn btn-pause" onclick="pauseAll()">Pause All</button>
                     <button class="btn btn-stop" onclick="stopAll()">Stop All</button>
                 </div>
@@ -337,6 +338,14 @@
                 <div class="chart-wrapper" id="charts-container">
                     <!-- Canvases dynamically populated -->
                 </div>
+            </div>
+
+            <div class="section">
+                <h2>Sensor Configuration</h2>
+                <div id="sensor-config-container" style="display: grid; gap: 1rem; margin-bottom: 1rem;">
+                    <div style="color: #888;">Loading configuration...</div>
+                </div>
+                <button class="btn btn-primary" onclick="saveSensorConfig()">Save Configuration</button>
             </div>
         </div>
 
@@ -391,13 +400,22 @@
             fetchVideoStatus();
         }
 
+        async function triggerAllMedia() {
+            try {
+                await fetch('/api/trigger-all', { method: 'POST' });
+                fetchVideoStatus();
+            } catch (e) {
+                console.error('Trigger all media error:', e);
+            }
+        }
+
         async function pauseAll() {
-            await fetch('/api/video/pause-all', { method: 'POST' });
+            await fetch('/api/pause-all', { method: 'POST' });
             fetchVideoStatus();
         }
 
         async function stopAll() {
-            await fetch('/api/video/stop-all', { method: 'POST' });
+            await fetch('/api/stop-all', { method: 'POST' });
             fetchVideoStatus();
         }
 
