@@ -1,3 +1,7 @@
-start http://127.0.0.1:5001/
+git pull
 
-uv run ./main.py
+start http://127.0.0.1:8000/
+
+cd ./src_2
+
+uv run ./web_server.py
