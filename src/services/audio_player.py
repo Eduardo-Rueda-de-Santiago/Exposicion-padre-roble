@@ -1,7 +1,6 @@
 import json
 import os
 import threading
-import time
 
 import numpy as np
 
@@ -181,7 +180,6 @@ class RemixEngine:
 class AudioService:
     def __init__(self):
         self.sensor_to_track_idx = {}
-        self.engine: RemixEngine | None = None
         self._load_engine()
 
     def _load_engine(self):

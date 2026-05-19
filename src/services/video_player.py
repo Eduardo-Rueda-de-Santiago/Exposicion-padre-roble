@@ -1,9 +1,7 @@
-import asyncio
 import json
 import os
 import socket
 import subprocess
-import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -264,7 +262,7 @@ class ScreenManager:
     # SINGLE SCREEN CONTROL
     # -------------------------------------------------------------------------
 
-    def play_screen(self, screen_id: int, video_path: str = None):
+    def play_screen(self, screen_id: int, video_path: str | None = None):
         """
         Play video on a specific screen.
         """
