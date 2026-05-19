@@ -301,7 +301,21 @@
                 text-align: center;
                 margin-top: 1rem;
             }
+            .docs-list {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
 
+            .doc-item {
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-left: 4px solid var(--primary);
+                padding: 1rem 1.25rem;
+                border-radius: 14px;
+                line-height: 1.5;
+                font-size: 0.95rem;
+            }
             footer {
                 text-align: center;
                 font-size: 0.8rem;
@@ -320,6 +334,7 @@
                 <button class="tab active" data-tab="video">Video</button>
                 <button class="tab" data-tab="audio">Audio</button>
                 <button class="tab" data-tab="sensors">Sensors</button>
+                <button class="tab" data-tab="docs">Docs</button>
             </div>
 
             <div id="tab-video" class="tab-content active">
@@ -536,7 +551,42 @@
                     </button>
                 </div>
             </div>
+            <div id="tab-docs" class="tab-content">
+                <div class="section">
+                    <h2>Instrucciones</h2>
 
+                    <div class="docs-list">
+                        <div class="doc-item">
+                            Al comienzo del día, cambia las pilas recargables.
+                        </div>
+
+                        <div class="doc-item">
+                            Si una columna deja de tener luz roja cambia las
+                            pilas recargables.
+                        </div>
+
+                        <div class="doc-item">
+                            Al final del día quita las pilas y ponlas a cargar.
+                        </div>
+
+                        <div class="doc-item">
+                            Para iniciar la exposición clica el icono en el
+                            escritorio.
+                        </div>
+
+                        <div class="doc-item">
+                            Para cerrar la exposición apaga la terminal (la
+                            aplicación negra con mucho texto).
+                        </div>
+
+                        <div class="doc-item">
+                            Para recibir actualizaciones conecta el ordenador a
+                            la red del museo, tardará un poco más en iniciar
+                            cuando se deba actualizar.
+                        </div>
+                    </div>
+                </div>
+            </div>
             <footer>Padre Roble Exposition System</footer>
         </div>
 
