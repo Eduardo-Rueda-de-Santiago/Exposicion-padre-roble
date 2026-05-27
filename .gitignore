@@ -13,6 +13,5 @@ wheels/
 src/data.db
 examples/song_overlap_python/audios/
 .env
-src_2/data.db
-src_2/audios/
-src_2/videos/
+src/data.db
+src/videos/
