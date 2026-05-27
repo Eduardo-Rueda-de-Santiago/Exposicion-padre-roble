@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from services.audio_player import audio_service
+# from services.audio_player import audio_service
 
 # -----------------------------------------------------------------------------
 # CONFIGURATION
@@ -144,7 +144,7 @@ class MPVPlayer:
             except OSError:
                 pass
             print(f"[MPV-{self.screen_id}] Video ended naturally — restarting.")
-            audio_service.reset()
+            # audio_service.reset()
             video = self.current_video
             if video:
                 self.start(video, loop=True)

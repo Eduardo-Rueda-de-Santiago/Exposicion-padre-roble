@@ -14,6 +14,10 @@ if not (os.path.exists("videos/ProyFinal_Centro_AUDIO.mp4")) and not (
     # Create directory if it doesn't exist
     os.makedirs(videos_dir, exist_ok=True)
 
+    for filename in os.listdir(videos_dir):
+        file_path = os.path.join(videos_dir, filename)
+        os.unlink(file_path)
+
     # Download all files from the folder
     gdown.download_folder(url=url, output=videos_dir, quiet=False, use_cookies=False)
 

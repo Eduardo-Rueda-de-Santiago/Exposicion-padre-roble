@@ -5,10 +5,13 @@ import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
 from routes.router import api_router
-from services.audio_player import audio_service
+
+# from services.audio_player import audio_service
 from services.database import db_service
-from services.serial_reader import serial_reader_service
+
+# from services.serial_reader import serial_reader_service
 from services.video_player import video_service
 
 
@@ -17,12 +20,12 @@ async def lifespan(app: FastAPI):
     # Startup
     print("[WEB] Initializing application services...")
     db_service.init_db()
-    serial_reader_service.start()
+    # serial_reader_service.start()
     yield
     # Shutdown
     print("[WEB] Shutting down application services...")
-    serial_reader_service.stop()
-    audio_service.stop()
+    # serial_reader_service.stop()
+    # audio_service.stop()
     video_service.cleanup()
 
 

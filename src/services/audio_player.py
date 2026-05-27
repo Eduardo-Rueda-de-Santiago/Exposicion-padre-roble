@@ -229,11 +229,11 @@ class AudioService:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            # bg_file = os.path.join(audios_dir, config.get("background_audio", ""))
-            # if os.path.exists(bg_file):
-            #     files.append(bg_file)
-            # else:
-            #     print(f"[AudioService] Warning: Background audio {bg_file} not found.")
+            bg_file = os.path.join(audios_dir, config.get("background_audio", ""))
+            if os.path.exists(bg_file):
+                files.append(bg_file)
+            else:
+                print(f"[AudioService] Warning: Background audio {bg_file} not found.")
 
             sensors = config.get("sensors", {})
             for sensor_id, data in sensors.items():
@@ -298,4 +298,4 @@ class AudioService:
         self.trigger_sensor(sensor_id)
 
 
-audio_service = AudioService()
+# audio_service = AudioService()

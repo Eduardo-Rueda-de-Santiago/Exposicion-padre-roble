@@ -7,7 +7,7 @@ import time
 import serial
 import serial.tools.list_ports
 
-from services.audio_player import audio_service
+# from services.audio_player import audio_service
 from services.database import db_service
 
 # Serial configuration
@@ -127,7 +127,8 @@ class SerialReaderService:
                             sensor_id, self._default_threshold
                         )
                         if val < threshold:
-                            audio_service.trigger_sensor(sensor_id)
+                            pass
+                            # audio_service.trigger_sensor(sensor_id)
 
             except Exception as e:
                 print(f"[SerialReader] Read error: {e}. Reconnecting...")

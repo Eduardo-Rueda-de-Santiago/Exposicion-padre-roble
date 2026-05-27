@@ -1,18 +1,20 @@
 import asyncio
 
 from fastapi import APIRouter
-from routes.audio_routes import audio_router
+
+# from routes.audio_routes import audio_router
 from routes.readings_routes import readings_router
 from routes.sensor_routes import sensor_router
 from routes.video_routes import video_router
-from services.audio_player import audio_service
+
+# from services.audio_player import audio_service
 from services.database import db_service
 from services.video_player import video_service
 
 api_router = APIRouter(prefix="/api")
 api_router.include_router(sensor_router, prefix="/sensors", tags=["Sensor"])
 api_router.include_router(video_router, prefix="/video", tags=["Video"])
-api_router.include_router(audio_router, prefix="/audio", tags=["Audio"])
+# api_router.include_router(audio_router, prefix="/audio", tags=["Audio"])
 api_router.include_router(readings_router, prefix="/readings", tags=["Readings"])
 
 
@@ -54,10 +56,10 @@ async def trigger_all():
 
     await asyncio.gather(
         asyncio.to_thread(video_service.play_all),
-        asyncio.to_thread(audio_service.start),
+        # asyncio.to_thread(audio_service.start),
     )
     await asyncio.gather(
-        *[asyncio.to_thread(audio_service.trigger_sensor, sid) for sid in sensor_ids]
+        # *[asyncio.to_thread(audio_service.trigger_sensor, sid) for sid in sensor_ids]
     )
     return {"status": "triggered_all"}
 
@@ -67,7 +69,7 @@ async def pause_all():
     """Pauses all videos and clears all audio triggers."""
     await asyncio.gather(
         asyncio.to_thread(video_service.pause_all),
-        asyncio.to_thread(audio_service.stop),
+        # asyncio.to_thread(audio_service.stop),
     )
     return {"status": "paused_all"}
 
@@ -77,6 +79,6 @@ async def stop_all():
     """Stops all videos and clears all audio triggers."""
     await asyncio.gather(
         asyncio.to_thread(video_service.stop_all),
-        asyncio.to_thread(audio_service.stop),
+        # asyncio.to_thread(audio_service.stop),
     )
     return {"status": "stopped_all"}
