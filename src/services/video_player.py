@@ -2,9 +2,12 @@ import json
 import os
 import socket
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Optional
+
+from services.audio_player import audio_service
 
 # -----------------------------------------------------------------------------
 # CONFIGURATION
@@ -52,7 +55,7 @@ class MPVPlayer:
         self.stop()
         self.current_video = video_path
 
-        loop_arg = "inf" if loop else "no"
+        loop_arg = "no"
 
         shell_cmd = (
             f'{MPV_PATH} "{video_path}" '
@@ -67,8 +70,13 @@ class MPVPlayer:
         )
 
         try:
-            subprocess.Popen(shell_cmd, shell=True)
+            self.process = subprocess.Popen(shell_cmd, shell=True)
             self.state = "playing"
+            if loop:
+                threading.Thread(
+                    target=self._loop_monitor,
+                    daemon=True,
+                ).start()
             print(
                 f"[MPV-{self.screen_id}] Started: "
                 f"{Path(video_path).name} on screen {self.screen_id}"
@@ -76,6 +84,23 @@ class MPVPlayer:
         except Exception as e:
             print(f"[MPV-{self.screen_id}] ERROR: {e}")
             self.state = "error"
+
+    def _loop_monitor(self):
+        """
+        Restart video manually when it ends,
+        and reset overlay audio timeline.
+        """
+        while self.process:
+            ret = self.process.wait()
+
+            if ret is None:
+                continue
+
+            # video ended naturally
+            audio_service.reset()
+
+            self.start(self.current_video, loop=True)
+            return
 
     def stop(self):
         """

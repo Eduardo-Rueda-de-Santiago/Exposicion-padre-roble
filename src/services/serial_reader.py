@@ -43,7 +43,7 @@ class SerialReaderService:
 
     def parse_line(self, line: str):
         # Expected format: ESP_COLUMN_1|142.00
-        match = re.search(r"(ESP_COLUMN_(\d+))\|(\d+\.?\d*)", line)
+        match = re.fullmatch(r"(ESP_COLUMN_(\d+))\|(-?\d+(?:\.\d+)?)", line)
         if match:
             sensor_id = match.group(1)
             col_num = int(match.group(2))

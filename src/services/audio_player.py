@@ -170,11 +170,41 @@ class RemixEngine:
             np.arange(self._start_frame, self._start_frame + frames) % self.track_len
         )
         self._start_frame += frames
-        mixed = sum(
-            self.data[i][indices] * self._current_vols[i] for i in range(self.n_tracks)
-        )
+        mixed = np.zeros_like(self.data[0][indices])
+
+        for i in range(self.n_tracks):
+            vol = self._current_vols[i]
+
+            if vol > 0.0001:
+                mixed += self.data[i][indices] * vol
+
         np.clip(mixed, -1.0, 1.0, out=mixed)
         outdata[:] = mixed.reshape(outdata.shape)
+
+    def reset_timeline(self):
+        """
+        Reset playback position and all fades.
+        Keeps audio stream alive but rewinds everything.
+        """
+        if self.n_tracks == 0:
+            return
+
+        with self._lock:
+            self._start_frame = 0
+
+            self._active_tracks.clear()
+
+            for timer in self._solo_timers.values():
+                timer.cancel()
+
+            self._solo_timers.clear()
+
+            self._current_vols.fill(0.0)
+            self._fade_from.fill(0.0)
+            self._fade_target.fill(0.0)
+            self._fade_pos.fill(1.0)
+
+            self._pending_targets = np.zeros(self.n_tracks, dtype=np.float64)
 
 
 class AudioService:
@@ -195,11 +225,11 @@ class AudioService:
             with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
-            bg_file = os.path.join(audios_dir, config.get("background_audio", ""))
-            if os.path.exists(bg_file):
-                files.append(bg_file)
-            else:
-                print(f"[AudioService] Warning: Background audio {bg_file} not found.")
+            # bg_file = os.path.join(audios_dir, config.get("background_audio", ""))
+            # if os.path.exists(bg_file):
+            #     files.append(bg_file)
+            # else:
+            #     print(f"[AudioService] Warning: Background audio {bg_file} not found.")
 
             sensors = config.get("sensors", {})
             for sensor_id, data in sensors.items():
@@ -218,8 +248,8 @@ class AudioService:
 
         self.engine: RemixEngine = RemixEngine(
             files=files,
-            base_fg_vol=1.0,
-            base_bg_vol=0.20,
+            base_fg_vol=0.0,
+            base_bg_vol=0.0,
             track_fg_vol=0.90,
             track_bg_vol=0.0,
             fade_in_duration=2.0,
@@ -243,6 +273,10 @@ class AudioService:
     def stop(self):
         if self.engine:
             self.engine.stop()
+
+    def reset(self):
+        if self.engine:
+            self.engine.reset_timeline()
 
     def clear_all_triggers(self):
         if self.engine:

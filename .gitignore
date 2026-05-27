@@ -14,3 +14,4 @@ src/data.db
 examples/song_overlap_python/audios/
 .env
 src/data.db
+src/videos/
