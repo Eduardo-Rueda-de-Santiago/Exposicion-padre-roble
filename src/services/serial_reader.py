@@ -127,7 +127,7 @@ class SerialReaderService:
                             sensor_id, self._default_threshold
                         )
                         if val < threshold:
-                            audio_service.trigger_column(int(sensor_id))
+                            audio_service.trigger_sensor(sensor_id)
 
             except Exception as e:
                 print(f"[SerialReader] Read error: {e}. Reconnecting...")

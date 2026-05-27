@@ -2,6 +2,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import threading
 import time
 from pathlib import Path
@@ -48,6 +49,28 @@ class MPVPlayer:
         self.current_video = None
         self.volume = 100
 
+        # Paths for EOF detection via Lua script.
+        # The Lua script writes a flag file only on natural video end (EOF),
+        # not on user quit (Alt+F4), so _loop_monitor can tell the two apart.
+        self._eof_flag_path = os.path.join(SOCKET_DIR, f"mpv_eof_{screen_id}.flag")
+        self._lua_script_path = os.path.join(SOCKET_DIR, f"mpv_eof_{screen_id}.lua")
+        self._write_lua_script()
+
+    def _write_lua_script(self) -> None:
+        """Write the Lua helper that signals a natural EOF to Python."""
+        # Lua needs forward slashes (works on Windows too).
+        flag_path = self._eof_flag_path.replace("\\", "/")
+        lua = (
+            'mp.register_event("end-file", function(event)\n'
+            '    if event.reason == "eof" then\n'
+            f'        local f = io.open("{flag_path}", "w")\n'
+            '        if f then f:write("1") f:close() end\n'
+            "    end\n"
+            "end)\n"
+        )
+        with open(self._lua_script_path, "w") as fh:
+            fh.write(lua)
+
     def start(self, video_path: str, loop: bool = True):
         """
         Start playing a video on this screen.
@@ -55,7 +78,15 @@ class MPVPlayer:
         self.stop()
         self.current_video = video_path
 
+        # Remove any stale EOF flag left over from a previous run.
+        try:
+            os.remove(self._eof_flag_path)
+        except FileNotFoundError:
+            pass
+
         loop_arg = "no"
+        # Forward slashes work in mpv --script on Windows.
+        lua_path = self._lua_script_path.replace("\\", "/")
 
         shell_cmd = (
             f'{MPV_PATH} "{video_path}" '
@@ -66,7 +97,8 @@ class MPVPlayer:
             f"--volume={self.volume} "
             f"--idle=no "
             f"--autofit=100% "
-            f"--keepaspect=no"
+            f"--keepaspect=no "
+            f'--script="{lua_path}"'
         )
 
         try:
@@ -87,36 +119,73 @@ class MPVPlayer:
 
     def _loop_monitor(self):
         """
-        Restart video manually when it ends,
-        and reset overlay audio timeline.
+        Wait for mpv to exit, then decide whether to restart:
+        - Natural EOF  → reset audio timeline and restart the video.
+        - User quit (Alt+F4, window close, etc.) → leave the screen black.
+        - API stop() → self.process is None; exit silently.
+
+        The distinction between EOF and user-quit is made via a Lua script
+        that writes a flag file *only* when the video ends naturally.
         """
-        while self.process:
-            ret = self.process.wait()
-
-            if ret is None:
-                continue
-
-            # video ended naturally
-            audio_service.reset()
-
-            self.start(self.current_video, loop=True)
+        process_ref = self.process
+        if process_ref is None:
             return
+
+        process_ref.wait()  # Block until mpv exits for any reason.
+
+        # stop() was called from outside — don't restart.
+        if self.process is None:
+            return
+
+        if os.path.exists(self._eof_flag_path):
+            # Natural end: clean up flag, reset audio, loop the video.
+            try:
+                os.remove(self._eof_flag_path)
+            except OSError:
+                pass
+            print(f"[MPV-{self.screen_id}] Video ended naturally — restarting.")
+            audio_service.reset()
+            video = self.current_video
+            if video:
+                self.start(video, loop=True)
+        else:
+            # User closed the window (Alt+F4, etc.) — stay stopped.
+            print(
+                f"[MPV-{self.screen_id}] Window closed by user — "
+                "staying stopped until API restart."
+            )
+            self.process = None
+            self.state = "stopped"
+            self.current_video = None
 
     def stop(self):
         """
         Stop the currently playing video on this screen.
+        Sets self.process = None *before* killing so _loop_monitor knows
+        this was an intentional stop and won't restart.
         """
-        try:
-            if self.current_video:
-                subprocess.run(
-                    ["pkill", "-f", f"mpv.*{Path(self.current_video).name}"],
-                    timeout=2,
-                )
-        except Exception:
-            pass
-
+        process = self.process
         self.process = None
         self.state = "stopped"
+        self.current_video = None
+
+        if process is not None:
+            try:
+                if sys.platform == "win32":
+                    # Kill the whole process tree (cmd.exe shell + mpv child).
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                        capture_output=True,
+                        timeout=3,
+                    )
+                else:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+            except Exception:
+                pass
 
     def pause(self):
         """
@@ -274,7 +343,14 @@ class ScreenManager:
         Force stop all mpv instances.
         """
         try:
-            subprocess.run(["pkill", "-9", "mpv"], timeout=3)
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", "mpv.exe"],
+                    capture_output=True,
+                    timeout=3,
+                )
+            else:
+                subprocess.run(["pkill", "-9", "mpv"], timeout=3)
         except Exception:
             pass
 

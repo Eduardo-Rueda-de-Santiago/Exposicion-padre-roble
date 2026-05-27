@@ -76,11 +76,15 @@ class RemixEngine:
         self._stream = None
 
     def trigger(self, track_idx: int) -> None:
-        if not (0 < track_idx < self.n_tracks):
+        if not (0 <= track_idx < self.n_tracks):
             return
         with self._lock:
-            if track_idx in self._solo_timers:
-                self._solo_timers[track_idx].cancel()
+            # Cancel ALL active timers and clear active tracks so only one
+            # track plays at a time. The fade system handles the crossfade.
+            for timer in self._solo_timers.values():
+                timer.cancel()
+            self._solo_timers.clear()
+            self._active_tracks.clear()
             self._active_tracks.add(track_idx)
             self._push_targets()
         timer = threading.Timer(self.solo_duration, self._deactivate, args=[track_idx])
@@ -283,7 +287,7 @@ class AudioService:
             self.engine.clear_all_triggers()
 
     def trigger_sensor(self, sensor_id: str):
-        if self.engine.n_tracks > 1:
+        if self.engine.n_tracks > 0:
             track_idx = self.sensor_to_track_idx.get(sensor_id)
             if track_idx is not None:
                 self.engine.trigger(track_idx)
